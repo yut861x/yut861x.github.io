@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.0/css/all.min.css" integrity="sha256-VHqXKFhhMxcpubYf9xiWdCiojEbY9NexQ4jh8AxbvcM=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"yut861x.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.24.1","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="我做了一个可以在手机和电脑上使用的日常账本：日常手动记一笔，固定收支按计划生成，付款截图也能通过 iPhone 快捷指令识别后确认入账。代码放在 GitHub。这篇文章先讲怎么用，再交代它的数据流与安全边界。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="日常账本：架构与使用指南">
+<meta property="og:url" content="https://yut861x.github.io/2026/10/09/cloud-ledger-guide/index.html">
+<meta property="og:site_name" content="牛马打工生活">
+<meta property="og:description" content="我做了一个可以在手机和电脑上使用的日常账本：日常手动记一笔，固定收支按计划生成，付款截图也能通过 iPhone 快捷指令识别后确认入账。代码放在 GitHub。这篇文章先讲怎么用，再交代它的数据流与安全边界。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://yut861x.github.io/images/ledger-architecture.svg">
+<meta property="article:published_time" content="2026-10-09T06:00:00.000Z">
+<meta property="article:modified_time" content="2026-10-09T06:49:00.168Z">
+<meta property="article:author" content="yut">
+<meta property="article:tag" content="记账">
+<meta property="article:tag" content="Vue">
+<meta property="article:tag" content="Supabase">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://yut861x.github.io/images/ledger-architecture.svg">
+
+
+<link rel="canonical" href="https://yut861x.github.io/2026/10/09/cloud-ledger-guide/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://yut861x.github.io/2026/10/09/cloud-ledger-guide/","path":"2026/10/09/cloud-ledger-guide/","title":"日常账本：架构与使用指南"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>日常账本：架构与使用指南 | 牛马打工生活</title>
+  
+
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">牛马打工生活</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">记录牛马点滴</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-实用工具"><a href="/categories/%E5%AE%9E%E7%94%A8%E5%B7%A5%E5%85%B7/" rel="section"><i class="fa fa-wrench fa-fw"></i>实用工具</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%8E%E5%93%AA%E9%87%8C%E5%BC%80%E5%A7%8B"><span class="nav-number">1.</span> <span class="nav-text">从哪里开始</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B4%A6%E6%9C%AC%E4%B8%8E%E6%97%A5%E5%B8%B8%E8%AE%B0%E8%B4%A6"><span class="nav-number">2.</span> <span class="nav-text">账本与日常记账</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8%E4%BB%98%E6%AC%BE%E6%88%AA%E5%9B%BE%E8%AE%B0%E8%B4%A6"><span class="nav-number">3.</span> <span class="nav-text">用付款截图记账</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9E%B6%E6%9E%84%EF%BC%9A%E9%9D%99%E6%80%81%E7%BD%91%E9%A1%B5%E4%B8%8E%E4%BA%91%E7%AB%AF%E6%95%B0%E6%8D%AE%E5%88%86%E5%BC%80"><span class="nav-number">4.</span> <span class="nav-text">架构：静态网页与云端数据分开</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%83%B3%E8%87%AA%E5%B7%B1%E9%83%A8%E7%BD%B2"><span class="nav-number">5.</span> <span class="nav-text">想自己部署</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yut</p>
+  <div class="site-description" itemprop="description">用 Hexo 搭建的个人博客</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://yut861x.github.io/2026/10/09/cloud-ledger-guide/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yut">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="牛马打工生活">
+      <meta itemprop="description" content="用 Hexo 搭建的个人博客">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="日常账本：架构与使用指南 | 牛马打工生活">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          日常账本：架构与使用指南
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2026-10-09 14:00:00 / 修改时间：14:49:00" itemprop="dateCreated datePublished" datetime="2026-10-09T14:00:00+08:00">2026-10-09</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%AE%9E%E7%94%A8%E5%B7%A5%E5%85%B7/" itemprop="url" rel="index"><span itemprop="name">实用工具</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>我做了一个可以在手机和电脑上使用的<a href="https://yut861x.github.io/cloud-ledger/">日常账本</a>：日常手动记一笔，固定收支按计划生成，付款截图也能通过 iPhone 快捷指令识别后确认入账。代码放在 <a target="_blank" rel="noopener" href="https://github.com/yut861x/cloud-ledger">GitHub</a>。这篇文章先讲怎么用，再交代它的数据流与安全边界。</p>
+<span id="more"></span>
+
+<h2 id="从哪里开始"><a href="#从哪里开始" class="headerlink" title="从哪里开始"></a>从哪里开始</h2><p>打开<a href="https://yut861x.github.io/cloud-ledger/">日常账本</a>，用邮箱注册或登录。若注册后需要验证邮箱，先完成邮件确认。登录后，侧栏可以进入总览、账目、分类统计、日历，也可以选择具体账本。</p>
+<p>总览汇总<strong>所选月份的所有账本</strong>：本月收入、支出、结余，收入和支出的像素风分类饼图，以及最近记录。最近记录会标出所属账本。点击侧栏某一本账本，会进入该账本的账目；分类统计、日历和 CSV 导出仍以当前账本为范围。切换月份用页面上方的左右箭头。</p>
+<h2 id="账本与日常记账"><a href="#账本与日常记账" class="headerlink" title="账本与日常记账"></a>账本与日常记账</h2><p>账本分为四类，侧栏按“动态支出 → 固定支出 → 动态收入 → 固定收入”排列。支出账本与收入账本使用不同图标；新建账本时选好类别，新增账目会据此预选收入或支出，但保存前仍可手动切换。</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>适合记录</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>动态支出</td>
+<td>餐饮、购物、交通等随时发生的开销</td>
+</tr>
+<tr>
+<td>固定支出</td>
+<td>房租、订阅等周期性支出</td>
+</tr>
+<tr>
+<td>动态收入</td>
+<td>副业、红包、奖金等不固定收入</td>
+</tr>
+<tr>
+<td>固定收入</td>
+<td>工资等周期性收入</td>
+</tr>
+</tbody></table>
+<p>点“记一笔”，选择账本、收入或支出、金额、分类和日期，备注可留空。保存后可以在账目列表中编辑或删除。账目按所选日期计入对应月份；界面目前以人民币显示。</p>
+<p>“固定”首先是账本分类，<strong>不会仅因选择固定类别就自动生成记录</strong>。自动计划目前适用于内置的工资账本与固定支出账本：进入对应账本，设置每月日期、北京时间、金额；固定支出还要填写用途。计划可以暂停或修改，设为 31 日时短月按当月最后一天执行。自动生成的账目仍可手动编辑。</p>
+<h2 id="用付款截图记账"><a href="#用付款截图记账" class="headerlink" title="用付款截图记账"></a>用付款截图记账</h2><p>iPhone 快捷指令可以从分享菜单接收付款截图，也可以配置“设置 → 无障碍 → 触控 → 轻点背面 → 轻点两下”来运行截图记账快捷指令。它先在手机上截图、提取文字，给出候选金额，再由你确认或修改金额、选择收支类型与分类，最后才提交。</p>
+<p>截图里可能同时有原价、优惠金额和实付金额，OCR 也可能误读数字，因此<strong>一定要在确认页核对金额</strong>，不要把识别结果当成最终账目。完整动作顺序、请求字段和错误处理见<a target="_blank" rel="noopener" href="https://github.com/yut861x/cloud-ledger/blob/main/SHORTCUT_SETUP.md">快捷指令配置说明</a>。</p>
+<p>首次使用快捷指令，要先在网站侧栏的“快捷指令接入”生成专用密钥，并填入快捷指令的请求标头。密钥只显示一次；不要把它发给别人，也不要放进公开分享的快捷指令。若怀疑泄露，可在网站撤销或重新生成，旧密钥会立即失效。</p>
+<h2 id="架构：静态网页与云端数据分开"><a href="#架构：静态网页与云端数据分开" class="headerlink" title="架构：静态网页与云端数据分开"></a>架构：静态网页与云端数据分开</h2><p><img src="/images/ledger-architecture.svg" alt="日常账本架构图"></p>
+<p>网页是 <strong>Vue 3 + Vite</strong> 构建的静态应用，由 GitHub Pages 托管；Pages 本身不存账目。用户登录走 <strong>Supabase Auth</strong>，账本、账目和自动计划保存在 <strong>Supabase Postgres</strong>。网页通过 Supabase API 读取和修改本人数据，数据库的行级安全策略（RLS）负责隔离不同用户，而不是依赖前端隐藏按钮。</p>
+<p>截图记账走另一条入口：<strong>iPhone 快捷指令 → Supabase Edge Function → Postgres</strong>。截图和 OCR 原文留在手机上；接口只接收人工确认后的类型、金额、分类、日期、备注等字段。Edge Function 校验专用密钥、字段格式和账本归属后才新增账目。密钥不能用来查询、修改或删除记录。</p>
+<p>内置固定收支计划由 <strong>Supabase Cron</strong> 按北京时间触发，写入对应账本；前端负责设置和展示计划。账目金额在数据库中使用两位小数的数值字段，日期使用日期字段，这样按月统计不受浏览器显示格式影响。</p>
+<h2 id="想自己部署"><a href="#想自己部署" class="headerlink" title="想自己部署"></a>想自己部署</h2><p>项目的 <a target="_blank" rel="noopener" href="https://github.com/yut861x/cloud-ledger#readme">README</a> 列出 Supabase 建表与迁移脚本、环境变量、本地运行和 GitHub Pages 部署步骤。前端只应使用 Supabase 的 <strong>publishable key</strong>；<code>service_role</code> 或其他 secret key 不能写进 <code>VITE_</code> 变量、网页源码或公开仓库。长期使用建议定期备份数据库；应用内 CSV 导出只覆盖当前账本、当前月份及当前筛选结果。</p>
+<p>这个工具的目标很朴素：让随手记账足够轻，让金额确认和数据边界足够明确。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E8%AE%B0%E8%B4%A6/" rel="tag"># 记账</a>
+              <a href="/tags/Vue/" rel="tag"># Vue</a>
+              <a href="/tags/Supabase/" rel="tag"># Supabase</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2025/09/28/90-Day-Thin-Skin-Plan/" rel="prev" title="1.90 Day Thin Skin Plan">
+                  <i class="fa fa-angle-left"></i> 1.90 Day Thin Skin Plan
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2026</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">yut</span>
+  </div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+</body>
+</html>
