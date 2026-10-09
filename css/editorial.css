@@ -578,3 +578,27 @@ header.header {
 @media (prefers-reduced-motion: reduce) {
   .nav-link-card { transition: none; }
 }
+/* Keep the navigation title on the same left edge as its groups. */
+.page.posts-expand .post-block:has(.nav-hub) {
+  padding: 44px clamp(22px, 6vw, 62px);
+}
+body:has(.nav-hub) .page.posts-expand .post-header {
+  margin-bottom: 28px;
+  text-align: left;
+}
+.nav-hub { margin-left: 0; margin-right: 0; }
+.nav-card-symbol-linux { background: linear-gradient(135deg, #5b8f7b, #75ac97); }
+.nav-card-symbol-chatgpt { background: linear-gradient(135deg, #428b7d, #57ac9a); }
+.nav-card-symbol-seagm { background: linear-gradient(135deg, #d77e67, #e7a879); }
+.nav-card-symbol-youtube { background: linear-gradient(135deg, #e45e6d, #bf4663); }
+.nav-card-symbol-bilibili { background: linear-gradient(135deg, #6b9fe5, #8b7cdb); }
+.nav-card-symbol-juejin { background: linear-gradient(135deg, #557bcd, #739add); }
+.nav-card-symbol-leetcode {
+  background: linear-gradient(135deg, #db9947, #e7b36c);
+  font-size: 18px;
+}
+.nav-card-symbol-xiaohongshu { background: linear-gradient(135deg, #e46d77, #f08a8d); }
+@media (max-width: 767px) {
+  .page.posts-expand .post-block:has(.nav-hub) { padding: 25px 19px; }
+  body:has(.nav-hub) .page.posts-expand .post-header { margin-bottom: 18px; }
+}
